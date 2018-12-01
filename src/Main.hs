@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Foldable (for_)
 
--- Answers
+-- Answers:
 import qualified Day1
 
 

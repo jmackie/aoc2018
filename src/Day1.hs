@@ -111,7 +111,7 @@ data ParseError = ParseError Integer Text ParseError'
 
 instance Show ParseError where
     show (ParseError lineNumber _line reason) =
-        "parsing error: line " <> show lineNumber <> show reason
+        "parsing error: line " <> show lineNumber <> ": " <> show reason
 
 
 data ParseError'
