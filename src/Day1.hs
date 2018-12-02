@@ -12,6 +12,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text (readFile)
 import qualified Paths_aoc2018 as Paths
 
+import Control.Monad (zipWithM)
 import Data.Bifunctor (first)
 import Data.Foldable (foldl')
 import Data.Function ((&))
@@ -29,13 +30,10 @@ printAnswer = do
     changes <- parseChanges input & either Exception.throwIO pure
 
     -- Part 1:
-    -- Apply all changes to an initialFrequency of 0
     putStr "\tPart 1: "
     print (applyChanges zeroFrequency changes)
 
     -- Part 2:
-    -- Following from part 1, find the first duplicate frequency.
-    -- Changes are cycled.
     putStr "\tPart 2: "
     print (findFirstDuplicate . scanChanges zeroFrequency $ cycle changes)
 
@@ -78,19 +76,19 @@ findFirstDuplicate = go Set.empty
 
 
 parseChanges :: Text -> Either ParseError [Change]
-parseChanges = sequence . zipWith parseLine [1 ..] . Text.lines
+parseChanges = zipWithM parseLine [1 ..] . Text.lines
   where
     parseLine :: Integer -> Text -> Either ParseError Change
     parseLine lineNumber line = first (ParseError lineNumber line) $ do
         (op, integer) <- Text.uncons line ? EmptyLine
-        frequency     <- parseFrequency integer ? BadInteger integer
+        frequency     <- readFrequency integer ? BadInteger integer
         operation     <- operationFromChar op ? BadOperation op
         case operation of
             Add      -> pure $ Change (+ frequency)
             Subtract -> pure $ Change (subtract frequency)
 
-    parseFrequency :: Text -> Maybe Frequency
-    parseFrequency = readMaybe . Text.unpack
+    readFrequency :: Text -> Maybe Frequency
+    readFrequency = readMaybe . Text.unpack
 
     (?) :: Maybe a -> ParseError' -> Either ParseError' a
     (?) mba err = maybe (Left err) Right mba

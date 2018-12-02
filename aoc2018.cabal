@@ -21,6 +21,8 @@ executable aoc2018
     hs-source-dirs:
         src
     other-modules:
+        Paths_aoc2018
+
         Day1
         Day2
     build-depends:

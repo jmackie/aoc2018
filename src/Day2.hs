@@ -9,6 +9,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text (readFile)
 import qualified Paths_aoc2018 as Paths
 
+import Data.Foldable (foldl')
 import Data.Text (Text)
 
 
@@ -68,11 +69,8 @@ findPrototypeBoxIds = go . Text.lines
 
 
 countOccurrences :: forall a . Ord a => [a] -> [(a, Count)]
-countOccurrences = Map.toList . go Map.empty
-  where
-    go :: Map.Map a Int -> [a] -> Map.Map a Count
-    go accum []       = accum
-    go accum (a : as) = go (Map.insertWith (+) a 1 accum) as
+countOccurrences =
+    Map.toList . foldl' (\accum a -> Map.insertWith (+) a 1 accum) Map.empty
 
 
 countTrue :: [Bool] -> Count
@@ -80,6 +78,7 @@ countTrue []       = 0
 countTrue (b : bs) = if b then 1 + countTrue bs else countTrue bs
 
 
+{-# ANN commonChars "HLint: ignore Use String" #-}
 commonChars :: Text -> Text -> [Char]
-commonChars a b = fmap fst
-    $ filter (uncurry (==)) (zipWith (,) (Text.unpack a) (Text.unpack b))
+commonChars a b =
+    fst <$> filter (uncurry (==)) (zip (Text.unpack a) (Text.unpack b))
