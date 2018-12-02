@@ -6,12 +6,13 @@ version: 1.0.0
 license-file: LICENSE
 author: Jordan Mackie
 maintainer: jmackie@protonmail.com
-data-files:
-    data/day1.txt
 -- copyright:
 -- category:
 build-type: Simple
 cabal-version: >=1.10
+data-files:
+    data/day1.txt
+    data/day2.txt
 
 
 executable aoc2018
@@ -21,6 +22,7 @@ executable aoc2018
         src
     other-modules:
         Day1
+        Day2
     build-depends:
         base >=4.11 && <4.12
       , containers
