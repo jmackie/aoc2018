@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Day2 (printAnswer) where
 
 import Prelude
@@ -68,7 +67,7 @@ findPrototypeBoxIds = go . Text.lines
         countTrue (zipWith (/=) (Text.unpack a) (Text.unpack b)) == 1
 
 
-countOccurrences :: forall a . Ord a => [a] -> [(a, Count)]
+countOccurrences :: Ord a => [a] -> [(a, Count)]
 countOccurrences =
     Map.toList . foldl' (\accum a -> Map.insertWith (+) a 1 accum) Map.empty
 
