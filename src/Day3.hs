@@ -23,10 +23,12 @@ printAnswer = do
     claims <- parseClaims input & either error pure
 
     putStr "\tPart 1: "
-    print (overlappingClaims claims) -- 116491
+    print (overlappingClaims claims)
+    -- 116491
 
     putStr "\tPart 2: "
-    print (nonOverlappingClaims claims) -- Just [707]
+    print (nonOverlappingClaims claims)
+    -- Just [707]
 
 
 overlappingClaims :: [Claim] -> Int

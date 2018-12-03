@@ -29,13 +29,13 @@ printAnswer = do
     input   <- getQuestionInput
     changes <- parseChanges input & either Exception.throwIO pure
 
-    -- Part 1:
     putStr "\tPart 1: "
     print (applyChanges zeroFrequency changes)
+    -- 459
 
-    -- Part 2:
     putStr "\tPart 2: "
     print (findFirstDuplicate . scanChanges zeroFrequency $ cycle changes)
+    -- Just 65474
 
 
 newtype Frequency = Frequency Integer

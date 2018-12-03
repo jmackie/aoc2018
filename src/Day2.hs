@@ -20,13 +20,13 @@ printAnswer :: IO ()
 printAnswer = do
     input <- getQuestionInput
 
-    -- Part 1:
     putStr "\tPart 1: "
     print (checksum input)
+    -- 7134
 
-    -- Part 1:
     putStr "\tPart 2: "
     print (uncurry commonChars <$> findPrototypeBoxIds input)
+    -- Just "kbqwtcvzhmhpoelrnaxydifyb"
 
 
 type Count = Int
