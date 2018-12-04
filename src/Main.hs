@@ -8,6 +8,7 @@ import Data.Foldable (for_)
 import qualified Day1
 import qualified Day2
 import qualified Day3
+import qualified Day4
 
 
 main :: IO ()
@@ -21,4 +22,5 @@ answers =
     [ ("Day1", Day1.printAnswer)
     , ("Day2", Day2.printAnswer)
     , ("Day3", Day3.printAnswer)
+    , ("Day4", Day4.printAnswer)
     ]
