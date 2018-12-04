@@ -76,14 +76,21 @@ mkSleepMaps = go Map.empty
     go accum (r : r' : rest) = case recordAction r of
         FallsAsleep -> flip go rest $ Map.alter
             (Just . \case
-                Nothing       -> mkSleepMap r r'
-                Just sleepMap -> Map.unionWith (<>) sleepMap (mkSleepMap r r')
+                Nothing -> asleepBetween r r'
+                Just sleepMap ->
+                    Map.unionWith (<>) sleepMap (asleepBetween r r')
             )
             (recordGuardId r)
             accum
 
         BeginsShift -> go accum (r' : rest)
         WakesUp     -> go accum (r' : rest)
+      where
+        asleepBetween :: Record -> Record -> SleepMap
+        asleepBetween start stop = Map.fromList
+            [ (minute, Sum 1)
+            | minute <- [recordMinute start .. recordMinute stop - 1]
+            ]
 
 
 sleepMapsToList :: Map GuardId SleepMap -> [(GuardId, Minute, Sum Int)]
@@ -98,13 +105,6 @@ sleepMapsToList sleepMaps =
 type GuardId  = Int
 type Minute   = Int
 type SleepMap = Map Minute (Sum Int)
-
-
-mkSleepMap :: Record -> Record -> SleepMap
-mkSleepMap start stop = Map.fromList
-    [ (minute, Sum 1)
-    | minute <- [recordMinute start .. recordMinute stop - 1]
-    ]
 
 
 data Record = Record
