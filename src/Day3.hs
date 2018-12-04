@@ -33,7 +33,7 @@ printAnswer = do
 
 overlappingClaims :: [Claim] -> Int
 overlappingClaims =
-    patchSize . foldMap (uncurry patchOverlap) . combinationsWith claimPatch
+    patchSize . foldMap (uncurry patchOverlap) . combinationsOf claimPatch
 
 
 nonOverlappingClaims :: [Claim] -> [Int]
@@ -95,8 +95,8 @@ claimParser = do
     parsePair sep parser = (,) <$> parser <*> (Parse.char sep *> parser)
 
 
-combinationsWith :: (a -> b) -> [a] -> [(b, b)]
-combinationsWith f l = [ (f x, f y) | (x : ys) <- List.tails l, y <- ys ]
+combinationsOf :: (a -> b) -> [a] -> [(b, b)]
+combinationsOf f l = [ (f x, f y) | (x : ys) <- List.tails l, y <- ys ]
 
 
 others :: [a] -> Maybe [(a, [a])]
