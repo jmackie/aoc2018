@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Day4 (printAnswer) where
 
@@ -46,17 +45,16 @@ part1 records = do
     pure (guardId * minute)
   where
     sleepMaps :: Map GuardId SleepMap
-    sleepMaps = mkSleepMaps (groupRecords records)
+    sleepMaps = mkSleepMaps records
 
     sleepiestGuard :: Maybe GuardId
     sleepiestGuard = do
-        (guardId, _) <- maximumBy (comparing (getSum . fold . snd))
-                                  (Map.toList sleepMaps)
+        (guardId, _) <- maximumOn (getSum . fold . snd) (Map.toList sleepMaps)
         pure guardId
 
     sleepiestMinute :: SleepMap -> Maybe Minute
     sleepiestMinute sleepMap = do
-        (minute, _) <- maximumBy (comparing snd) (Map.toList sleepMap)
+        (minute, _) <- maximumOn snd (Map.toList sleepMap)
         pure minute
 
 
@@ -64,27 +62,22 @@ part2 :: [Record] -> Maybe Int
 part2 []      = Nothing
 part2 records = do
     (guardId, minute, _) <-
-        maximumBy (comparing thrd)
-        . flattenSleepMaps
-        . mkSleepMaps
-        . groupRecords
-        $ records
+        maximumOn thrd . flattenSleepMaps . mkSleepMaps $ records
     pure (guardId * minute)
 
 
-mkSleepMaps :: Map GuardId [Record] -> Map GuardId SleepMap
-mkSleepMaps = fmap (buildSleepMap Map.empty)
+mkSleepMaps :: [Record] -> Map GuardId SleepMap
+mkSleepMaps =
+    fmap (buildSleepMap Map.empty . List.sortOn recordTimestamp) . groupRecords
   where
     buildSleepMap :: SleepMap -> [Record] -> SleepMap
-    buildSleepMap accum []              = accum
-    buildSleepMap accum (_      : []  ) = accum
-    buildSleepMap accum (r : r' : rest) = do
-        case recordAction r of
-            BeginsShift -> buildSleepMap accum (r' : rest)
-            WakesUp     -> buildSleepMap accum (r' : rest)
-            FallsAsleep ->
-                Map.unionWith (<>) (buildSleepMap accum (r' : rest))
-                    $ (singletonSleepMap `on` recordMinute) r r'
+    buildSleepMap accum (r : r' : rest) = case recordAction r of
+        BeginsShift -> buildSleepMap accum (r' : rest)
+        WakesUp     -> buildSleepMap accum (r' : rest)
+        FallsAsleep ->
+            Map.unionWith (<>) (buildSleepMap accum (r' : rest))
+                $ (singletonSleepMap `on` recordMinute) r r'
+    buildSleepMap accum _ = accum
 
 
 flattenSleepMaps :: Map GuardId SleepMap -> [(GuardId, Minute, Sum Int)]
@@ -141,8 +134,8 @@ data Action
 
 
 groupRecords :: [Record] -> Map GuardId [Record]
-groupRecords = fmap (List.sortOn recordTimestamp) . buildMap
-    (\accum record -> Map.insertWith (<>) (recordGuardId record) [record] accum)
+groupRecords = buildMap $ \accum record ->
+    Map.insertWith (<>) (recordGuardId record) [record] accum
 
 
 parseRecords :: Text -> Either String [Record]
@@ -204,9 +197,9 @@ buildMap :: Foldable t => (Map k v -> a -> Map k v) -> t a -> Map k v
 buildMap f = foldl' f Map.empty
 
 
-maximumBy :: (a -> a -> Ordering) -> [a] -> Maybe a
-maximumBy _ [] = Nothing
-maximumBy f as = Just (List.maximumBy f as)
+maximumOn :: Ord b => (a -> b) -> [a] -> Maybe a
+maximumOn _ [] = Nothing
+maximumOn f as = Just (List.maximumBy (comparing f) as)
 
 
 thrd :: (a, b, c) -> c
