@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Day4 (printAnswer) where
 
-import Prelude hiding (sum)
+import Prelude
 
 import qualified Data.Attoparsec.Text as Parse
 import qualified Data.List as List
@@ -11,8 +11,8 @@ import qualified Data.Text.IO as Text (readFile)
 import qualified Paths_aoc2018 as Paths
 
 import Control.Monad (foldM)
-import Data.Foldable (asum)
-import Data.Function ((&))
+import Data.Foldable (asum, fold, foldl')
+import Data.Function (on, (&))
 import Data.Map (Map)
 import Data.Monoid (Sum(Sum, getSum))
 import Data.Ord (comparing)
@@ -46,58 +46,52 @@ part1 records = do
     pure (guardId * minute)
   where
     sleepMaps :: Map GuardId SleepMap
-    sleepMaps = mkSleepMaps records
+    sleepMaps = mkSleepMaps (groupRecords records)
 
     sleepiestGuard :: Maybe GuardId
-    sleepiestGuard = fst
-        <$> maximumBy (comparing (sumSleep . snd)) (Map.toList sleepMaps)
-      where
-        sumSleep :: SleepMap -> Int
-        sumSleep = getSum . mconcat . Map.elems
+    sleepiestGuard = do
+        (guardId, _) <- maximumBy (comparing (getSum . fold . snd))
+                                  (Map.toList sleepMaps)
+        pure guardId
 
     sleepiestMinute :: SleepMap -> Maybe Minute
-    sleepiestMinute = fmap fst . maximumBy (comparing snd) . Map.toList
+    sleepiestMinute sleepMap = do
+        (minute, _) <- maximumBy (comparing snd) (Map.toList sleepMap)
+        pure minute
 
 
 part2 :: [Record] -> Maybe Int
 part2 []      = Nothing
 part2 records = do
     (guardId, minute, _) <-
-        maximumBy (comparing thrd) . sleepMapsToList . mkSleepMaps $ records
+        maximumBy (comparing thrd)
+        . flattenSleepMaps
+        . mkSleepMaps
+        . groupRecords
+        $ records
     pure (guardId * minute)
 
 
-mkSleepMaps :: [Record] -> Map GuardId SleepMap
-mkSleepMaps = go Map.empty
+mkSleepMaps :: Map GuardId [Record] -> Map GuardId SleepMap
+mkSleepMaps = fmap (buildSleepMap Map.empty)
   where
-    go :: Map GuardId SleepMap -> [Record] -> Map GuardId SleepMap
-    go accum []              = accum
-    go accum (_      : []  ) = accum
-    go accum (r : r' : rest) = case recordAction r of
-        FallsAsleep -> flip go rest $ Map.alter
-            (Just . \case
-                Nothing -> asleepBetween r r'
-                Just sleepMap ->
-                    Map.unionWith (<>) sleepMap (asleepBetween r r')
-            )
-            (recordGuardId r)
-            accum
-
-        BeginsShift -> go accum (r' : rest)
-        WakesUp     -> go accum (r' : rest)
-      where
-        asleepBetween :: Record -> Record -> SleepMap
-        asleepBetween start stop = Map.fromList
-            [ (minute, Sum 1)
-            | minute <- [recordMinute start .. recordMinute stop - 1]
-            ]
+    buildSleepMap :: SleepMap -> [Record] -> SleepMap
+    buildSleepMap accum []              = accum
+    buildSleepMap accum (_      : []  ) = accum
+    buildSleepMap accum (r : r' : rest) = do
+        case recordAction r of
+            BeginsShift -> buildSleepMap accum (r' : rest)
+            WakesUp     -> buildSleepMap accum (r' : rest)
+            FallsAsleep ->
+                Map.unionWith (<>) (buildSleepMap accum (r' : rest))
+                    $ (singletonSleepMap `on` recordMinute) r r'
 
 
-sleepMapsToList :: Map GuardId SleepMap -> [(GuardId, Minute, Sum Int)]
-sleepMapsToList sleepMaps =
-    [ (guardId, minute, sum)
+flattenSleepMaps :: Map GuardId SleepMap -> [(GuardId, Minute, Sum Int)]
+flattenSleepMaps sleepMaps =
+    [ (guardId, minute, sleepSum)
     | (guardId, sleepMap) <- Map.toList sleepMaps
-    , (minute , sum     ) <- Map.toList sleepMap
+    , (minute , sleepSum) <- Map.toList sleepMap
     ]
 
 
@@ -105,6 +99,11 @@ sleepMapsToList sleepMaps =
 type GuardId  = Int
 type Minute   = Int
 type SleepMap = Map Minute (Sum Int)
+
+
+singletonSleepMap :: Minute -> Minute -> SleepMap
+singletonSleepMap start stop =
+    Map.fromList [ (minute, Sum 1) | minute <- [start .. stop - 1] ]
 
 
 data Record = Record
@@ -141,20 +140,24 @@ data Action
     | WakesUp
 
 
+groupRecords :: [Record] -> Map GuardId [Record]
+groupRecords = fmap (List.sortOn recordTimestamp) . buildMap
+    (\accum record -> Map.insertWith (<>) (recordGuardId record) [record] accum)
+
+
 parseRecords :: Text -> Either String [Record]
 parseRecords input = do
     timestamps <- List.sortOn fst <$> Parse.parseOnly initialLineParser input
+    --                 ^^^^^^ important!
     case timestamps of
         []                              -> Left "no input lines"
         ((timestamp, rawAction) : rest) -> do
             (mbGuardId, action) <- Parse.parseOnly actionParser rawAction
             case mbGuardId of
-                Nothing -> Left "first record is missing a guard id"
-                Just guardId ->
-                    (Record timestamp guardId action :)
-                        .   reverse
-                        .   snd
-                        <$> foldM parseActions (guardId, []) rest
+                Nothing      -> Left "first record is missing a guard id"
+                Just guardId -> do
+                    (_, records) <- foldM parseActions (guardId, []) rest
+                    pure (Record timestamp guardId action : reverse records)
   where
     parseActions
         :: (GuardId, [Record])
@@ -195,6 +198,10 @@ parseRecords input = do
             <*> (Parse.char '-' *> Parse.decimal)
             <*> (Parse.skipSpace *> Parse.decimal)
             <*> (Parse.char ':' *> Parse.decimal)
+
+
+buildMap :: Foldable t => (Map k v -> a -> Map k v) -> t a -> Map k v
+buildMap f = foldl' f Map.empty
 
 
 maximumBy :: (a -> a -> Ordering) -> [a] -> Maybe a
