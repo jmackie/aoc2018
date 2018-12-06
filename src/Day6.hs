@@ -8,6 +8,7 @@ import Prelude
 
 import qualified Data.Attoparsec.Text as Parse
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -17,6 +18,7 @@ import qualified Paths_aoc2018 as Paths
 import Control.Monad (join)
 import Data.Foldable (foldl')
 import Data.Function ((&))
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map (Map)
 import Data.Monoid (Sum(Sum, getSum))
 import Data.Ord (comparing)
@@ -41,7 +43,7 @@ printAnswer = do
     -- 42123
 
 
-partOne :: [Coordinate] -> Maybe Int
+partOne :: NonEmpty Coordinate -> Maybe Int
 partOne coords =
     fmap getSum
         . maxValue
@@ -56,8 +58,8 @@ partOne coords =
     spaceWidth  = maximumOf xCoordinate coords
     spaceHeight = maximumOf yCoordinate coords
 
-    zippedCoords :: [(Int, Coordinate)]
-    zippedCoords = zip [0 ..] coords
+    indexedCoords :: [(Int, Coordinate)]
+    indexedCoords = zip [0 ..] (NonEmpty.toList coords)
 
     borderCoords :: [Coordinate]
     borderCoords = mconcat
@@ -71,7 +73,7 @@ partOne coords =
     initialSpace = foldl'
         (\accum (i, coord) -> Map.insert coord (Just i) accum)
         (fillSpace Nothing $ Rect 0 0 spaceWidth spaceHeight)
-        zippedCoords
+        indexedCoords
 
     populateAreas :: Space (Maybe Int) -> Space (Maybe Int)
     populateAreas = Map.mapWithKey mapper
@@ -79,9 +81,12 @@ partOne coords =
         mapper :: Coordinate -> Maybe Int -> Maybe Int
         mapper _ (Just i) = Just i
         mapper coord Nothing =
-            case singleMinimumOn (manhattanDistance coord . snd) zippedCoords of
-                Nothing     -> Nothing
-                Just (i, _) -> Just i
+            case
+                    singleMinimumOn (manhattanDistance coord . snd)
+                                    indexedCoords
+                of
+                    Nothing     -> Nothing
+                    Just (i, _) -> Just i
 
     filterInfiniteAreas :: Space (Maybe Int) -> Space (Maybe Int)
     filterInfiniteAreas space = Map.filter
@@ -96,7 +101,7 @@ partOne coords =
 
 
 {-# ANN partTwo "HLint: ignore Reduce duplication" #-}
-partTwo :: [Coordinate] -> Int
+partTwo :: NonEmpty Coordinate -> Int
 partTwo coords =
     Map.size . Map.filter (< Sum 10000) . populateDistances $ initialSpace
   where
@@ -146,10 +151,16 @@ manhattanDistance (Coordinate (x1, y1)) (Coordinate (x2, y2)) =
     abs (x1 - x2) + abs (y1 - y2)
 
 
-parseCoordinates :: Text -> Either String [Coordinate]
-parseCoordinates =
-    Parse.parseOnly $ coordinateParser `Parse.sepBy` Parse.endOfLine
+parseCoordinates :: Text -> Either String (NonEmpty Coordinate)
+parseCoordinates = Parse.parseOnly coordinatesParser
   where
+    coordinatesParser :: Parse.Parser (NonEmpty Coordinate)
+    coordinatesParser = do
+        coordinates <- coordinateParser `Parse.sepBy` Parse.endOfLine
+        case coordinates of
+            []       -> fail "expecting at least one coordinate"
+            (c : cs) -> pure (c :| cs)
+
     coordinateParser :: Parse.Parser Coordinate
     coordinateParser = Coordinate <$> xyParser
 
@@ -177,5 +188,5 @@ singleMinimumOn f as = case List.sortOn snd (fmap (\a -> (a, f a)) as) of
     _ -> Nothing
 
 
-maximumOf :: Ord b => (a -> b) -> [a] -> b
-maximumOf f = f . List.maximumBy (comparing f)
+maximumOf :: Ord b => (a -> b) -> NonEmpty a -> b
+maximumOf f = f . List.maximumBy (comparing f) . NonEmpty.toList
