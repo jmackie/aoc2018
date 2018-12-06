@@ -16,6 +16,7 @@ data-files:
     data/day3.txt
     data/day4.txt
     data/day5.txt
+    data/day6.txt
 
 
 executable aoc2018
@@ -31,6 +32,7 @@ executable aoc2018
         Day3
         Day4
         Day5
+        Day6
     build-depends:
         base >=4.11 && <4.12
       , attoparsec
