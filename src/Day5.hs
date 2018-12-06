@@ -27,9 +27,11 @@ printAnswer = do
 
     putStr "\tPart 1: "
     print (partOne input)
+    -- 9462
 
     putStr "\tPart 2: "
     print (partTwo input)
+    -- 4952
 
 
 partOne :: Text -> Int

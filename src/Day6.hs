@@ -16,7 +16,7 @@ import qualified Paths_aoc2018 as Paths
 
 import Control.Monad (join)
 import Data.Foldable (foldl')
-import Data.Function (on, (&))
+import Data.Function ((&))
 import Data.Map (Map)
 import Data.Monoid (Sum(Sum, getSum))
 import Data.Ord (comparing)
@@ -69,7 +69,7 @@ partOne coords =
 
     initialSpace :: Space (Maybe Int)
     initialSpace = foldl'
-        (\accum (i, coord) -> insertSpace coord (Just i) accum)
+        (\accum (i, coord) -> Map.insert coord (Just i) accum)
         (fillSpace Nothing $ Rect 0 0 spaceWidth spaceHeight)
         zippedCoords
 
@@ -123,10 +123,6 @@ fillSpace a rect = Map.fromList
     | x <- [xmin rect .. xmin rect + width rect]
     , y <- [ymin rect .. ymin rect + height rect]
     ]
-
-
-insertSpace :: Coordinate -> a -> Space a -> Space a
-insertSpace = Map.insert
 
 
 data Rect = Rect
