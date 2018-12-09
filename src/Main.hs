@@ -12,6 +12,7 @@ import qualified Day4
 import qualified Day5
 import qualified Day6
 import qualified Day7
+import qualified Day8
 
 
 main :: IO ()
@@ -29,4 +30,5 @@ answers =
     , ("Day5", Day5.printAnswer)
     , ("Day6", Day6.printAnswer)
     , ("Day7", Day7.printAnswer)
+    , ("Day8", Day8.printAnswer)
     ]

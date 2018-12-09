@@ -18,6 +18,7 @@ data-files:
     data/day5.txt
     data/day6.txt
     data/day7.txt
+    data/day8.txt
 
 
 executable aoc2018
@@ -27,6 +28,7 @@ executable aoc2018
         src
     other-modules:
         Paths_aoc2018
+        Control.Monad.Scanner
 
         Day1
         Day2
@@ -35,12 +37,12 @@ executable aoc2018
         Day5
         Day6
         Day7
+        Day8
     build-depends:
         base >=4.11 && <4.12
       , attoparsec
       , containers
       , text
-      , dequeue
     ghc-options:
         -Weverything
         -fno-warn-missing-import-lists
