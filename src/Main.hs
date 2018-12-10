@@ -14,21 +14,24 @@ import qualified Day6
 import qualified Day7
 import qualified Day8
 
+import qualified Day10
+
 
 main :: IO ()
-main = for_ answers $ \(dayName, printAnswer) -> do
+main = for_ (drop 8 answers) $ \(dayName, printAnswer) -> do
     putStrLn dayName
     printAnswer
 
 
 answers :: [(String, IO ())]
 answers =
-    [ ("Day1", Day1.printAnswer)
-    , ("Day2", Day2.printAnswer)
-    , ("Day3", Day3.printAnswer)
-    , ("Day4", Day4.printAnswer)
-    , ("Day5", Day5.printAnswer)
-    , ("Day6", Day6.printAnswer)
-    , ("Day7", Day7.printAnswer)
-    , ("Day8", Day8.printAnswer)
+    [ ("Day1" , Day1.printAnswer)
+    , ("Day2" , Day2.printAnswer)
+    , ("Day3" , Day3.printAnswer)
+    , ("Day4" , Day4.printAnswer)
+    , ("Day5" , Day5.printAnswer)
+    , ("Day6" , Day6.printAnswer)
+    , ("Day7" , Day7.printAnswer)
+    , ("Day8" , Day8.printAnswer)
+    , ("Day10", Day10.printAnswer)
     ]
