@@ -19,7 +19,7 @@ data-files:
     data/day6.txt
     data/day7.txt
     data/day8.txt
-
+    data/day9.txt
     data/day10.txt
 
 
@@ -40,13 +40,15 @@ executable aoc2018
         Day6
         Day7
         Day8
-
+        Day9
         Day10
     build-depends:
         base >=4.11 && <4.12
       , attoparsec
       , containers
       , text
+      , vector
+      , pointedlist
     ghc-options:
         -Weverything
         -fno-warn-missing-import-lists
