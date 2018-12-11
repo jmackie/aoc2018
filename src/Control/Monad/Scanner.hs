@@ -4,7 +4,6 @@ module Control.Monad.Scanner
     , run
     , scan
     )
-
 where
 
 import Prelude
@@ -12,19 +11,20 @@ import Prelude
 import Control.Monad.Fail (MonadFail(fail))
 
 
-data Error
-    = NotEnoughInput
-    | UserError String
-    deriving Show
-
-
-data Scanner s a = Scanner { run :: [s] -> Either Error (a, [s]) }
-
-
+-- | Scan a single item of input.
+--
+-- Build more complex scanners on top of this function.
 scan :: Scanner a a
 scan = Scanner $ \input -> case input of
     []       -> Left NotEnoughInput
     (a : as) -> Right (a, as)
+
+
+-- | Input scanner.
+newtype Scanner s a = Scanner { run :: [s] -> Either Error (a, [s]) }
+
+
+-- INSTANCES
 
 
 instance Functor (Scanner s) where
@@ -50,3 +50,10 @@ instance Monad (Scanner s) where
 
 instance MonadFail (Scanner s) where
     fail err = Scanner $ \_ -> Left (UserError err)
+
+
+-- | Scanning errors.
+data Error
+    = NotEnoughInput
+    | UserError String
+    deriving Show

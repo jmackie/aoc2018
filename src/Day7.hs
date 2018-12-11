@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedLists            #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TupleSections              #-}
 module Day7
@@ -7,22 +8,23 @@ module Day7
     )
 where
 
-import Prelude
+import Prelude hiding (head, tail)
 
 import qualified Data.Attoparsec.Text as Parse
 import qualified Data.Char as Char
-import qualified Data.Map as Map
+import qualified Data.Digraph as Digraph
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text (readFile)
 import qualified Paths_aoc2018 as Paths
 
 import Control.Applicative (liftA2)
-import Data.Bifunctor (first)
-import Data.Foldable (foldl')
-import Data.Function ((&))
-import Data.Map (Map)
-import Data.Maybe (fromMaybe, isNothing)
-import Data.Set (Set, (\\))
+import Control.Monad (guard)
+import Data.Bifunctor (bimap, first)
+import Data.Digraph (Arrow((:->)), Digraph(Digraph))
+import Data.Function (on, (&))
+import Data.Functor ((<&>))
+import Data.List (sort, (\\))
+import Data.Maybe (catMaybes, fromJust, isNothing)
 import Data.Text (Text)
 
 
@@ -32,194 +34,98 @@ getQuestionInput = Text.readFile =<< Paths.getDataFileName "data/day7.txt"
 
 printAnswer :: IO ()
 printAnswer = do
-    input <- getQuestionInput
-    steps <- parseSteps input & either error pure
+    input   <- getQuestionInput
+    digraph <- parseDigraph input & either error pure
 
     putStr "\tPart 1: "
-    print (partOne steps)
+    print (partOne digraph)
     -- "BHRTWCYSELPUVZAOIJKGMFQDXN"
 
     putStr "\tPart 2: "
-    print (partTwo steps)
-    -- 959
+    print (partTwo digraph 5)
 
 
-partOne :: [Step] -> String
-partOne = reverse . go "" . mkProcess
+partOne :: Digraph Char -> String
+partOne = fromJust . Digraph.tsortWith compare
+--        ^^^^^^^^ Shouldn't be cyclic
+
+
+partTwo :: Digraph Char -> Int -> Int
+partTwo digraph nworkers =
+    let workers =
+            allocateJobs (replicate nworkers Nothing) (availableJobs mempty)
+    in  go 0 workers mempty
   where
-    go :: String -> Process -> String
-    go result process =
-        case advanceProcess process result (singleton . minimum) of
-            Just ([next], process') -> go (next : result) process'
-            _                       -> result
+    go :: Int -> [Worker] -> String -> Int
+    go timer workers done
+        | all isNothing workers = timer
+        | otherwise = case runWorkers workers of
+            (workers', []) -> go (succ timer) workers' done
+            (workers', done') ->
+                let done''    = done <> done'
+                    jobs      = availableJobs done'' \\ catMaybes workers'
+                    workers'' = allocateJobs workers' jobs
+                in  go (succ timer) workers'' done''
+
+    availableJobs :: String -> [Job]
+    availableJobs done = sort $ do
+        c <- Set.toList (Digraph.vertices digraph) \\ done
+        let needs = Set.toList (Digraph.dipred c digraph)
+        guard $ all (`elem` done) needs
+        pure (mkJob c)
+
+    allocateJobs :: [Worker] -> [Job] -> [Worker]
+    allocateJobs []             _        = []
+    allocateJobs ws             []       = ws
+    allocateJobs (Nothing : ws) (j : js) = Just j : allocateJobs ws js
+    allocateJobs (busy    : ws) js       = busy : allocateJobs ws js
+
+    runWorkers :: [Worker] -> ([Worker], String)
+    runWorkers []                = ([], "")
+    runWorkers (Nothing  : rest) = first (Nothing :) (runWorkers rest)
+    runWorkers (Just job : rest) = case runJob job of
+        Left  job' -> first (Just job' :) (runWorkers rest)
+        Right c    -> bimap (Nothing :) (c :) (runWorkers rest)
 
 
-partTwo :: [Step] -> Int
-partTwo steps =
-    let (jobs, initialProcess) =
-            getAvailableJobs nworkers mempty (mkProcess steps)
-        (initialPool, initialJobs) = allocateJobs (emptyPool nworkers) jobs
-    in  snd (go 0 mempty initialJobs initialPool initialProcess)
-  where
-    nworkers :: Int
-    nworkers = 5
-
-    go :: Int -> String -> [Job] -> Pool -> Process -> (String, Int)
-    go timer result jobs pool process
-        | all isNothing pool = (result, timer)
-        | otherwise = case runPool pool of
-            ([], pool') -> go (succ timer) result jobs pool' process
-            (finished, pool') ->
-                let result' = result <> finished
-
-                    (newJobs, process') =
-                        getAvailableJobs (countIdle pool') result' process
-
-                    (pool'', jobs') = allocateJobs pool' (jobs <> newJobs)
-                in  go (succ timer) result' jobs' pool'' process'
-
-    getAvailableJobs :: Int -> String -> Process -> ([Job], Process)
-    getAvailableJobs n result process =
-        case advanceProcess process result (take n) of
-            Nothing             -> ([], process)
-            Just (cs, process') -> (fmap mkJob cs, process')
-
-
-type Pool = Map Worker (Maybe Job)
-
-
-emptyPool :: Int -> Pool
-emptyPool n = Map.fromList $ zip (fmap Worker [1 .. n]) (repeat Nothing)
-
-
-countIdle :: Pool -> Int
-countIdle = Map.size . Map.filter isNothing
-
-
-runPool :: Pool -> (String, Pool)
-runPool = ([], ) >>= Map.foldlWithKey f
-  where
-    f :: (String, Pool) -> Worker -> Maybe Job -> (String, Pool)
-    f accum          _      Nothing    = accum
-    f (result, pool) worker (Just job) = case runJob job of
-        Left  job' -> (result, Map.insert worker (Just job') pool)
-        Right c    -> (c : result, Map.insert worker Nothing pool)
-
-
-allocateJobs :: Pool -> [Job] -> (Pool, [Job])
-allocateJobs pool = go (Map.toList pool)
-  where
-    go :: [(Worker, Maybe Job)] -> [Job] -> (Pool, [Job])
-    go []        remaining = (Map.empty, remaining)
-    go remaining []        = (Map.fromList remaining, [])
-
-    go ((worker, Nothing) : workers) (job : jobs) =
-        first (Map.insert worker (Just job)) (go workers jobs)
-
-    go (busy : workers) jobs =
-        first (uncurry Map.insert busy) (go workers jobs)
-
-
-newtype Worker = Worker Int deriving newtype (Eq, Ord)
+type Worker = Maybe Job
 
 
 data Job = Job Char Int
 
+instance Eq  Job where (==)    = (==) `on`    \(Job c _) -> c
+instance Ord Job where compare = compare `on` \(Job c _) -> c
+
 
 mkJob :: Char -> Job
-mkJob c = Job c (Char.ord c - 4)
+mkJob c = Job c (Char.ord c - 4)  -- yolo
 
 
 runJob :: Job -> Either Job Char
 runJob (Job c t) = if t <= 1 then Right c else Left (Job c (pred t))
 
 
-data Process = Process
-    { _processSource   :: StepMap
-    , processRemaining :: StepMap
-    , processPending   :: Set Char
-    }
-
-
-mkProcess :: [Step] -> Process
-mkProcess steps =
-    let stepMap = mkStepMap steps
-    in  Process stepMap
-                stepMap
-                (Map.keysSet stepMap \\ mconcat (Map.elems stepMap))
-
-
-advanceProcess
-    :: Process -> String -> (String -> String) -> Maybe (String, Process)
-advanceProcess process@(Process stepMap remaining pending) accum select
-    | Set.null pending
-    = Nothing
-    | otherwise
-    = let
-          selection    = select (filter isReady $ Set.toList pending)
-          selectionSet = Set.fromList selection
-          nextProcess  = process
-              { processRemaining = remaining `Map.withoutKeys` selectionSet
-              , processPending   =
-                  (pending \\ selectionSet)
-                      <> foldMap
-                             (\k -> lookupWithDefault Set.empty k remaining)
-                             selectionSet
-              }
-      in
-          Just (selection, nextProcess)
+parseDigraph :: Text -> Either String (Digraph Char)
+parseDigraph input =
+    Parse.parseOnly (step `Parse.sepBy` Parse.endOfLine) input
+        <&> \steps -> Digraph
+                (Set.fromList $ concatMap (\(a, b) -> [a, b]) steps)
+                (Set.fromList $ fmap (uncurry (:->)) steps)
   where
-    isReady :: Char -> Bool
-    isReady c = all (`elem` accum) (dependenciesFor c stepMap)
-
-
-type StepMap = Map Char (Set Char)
-
-
-dependenciesFor :: Char -> StepMap -> String
-dependenciesFor c = Map.keys . Map.filter (Set.member c)
-
-
-mkStepMap :: [Step] -> StepMap
-mkStepMap = foldl' addStep Map.empty
-  where
-    addStep :: StepMap -> Step -> StepMap
-    addStep accum (before :-> after) = Map.unionWith
-        (<>)
-        (Map.fromList [(before, Set.singleton after), (after, Set.empty)])
-        accum
-
-
-data Step = Char :-> Char  -- lhs must happen before rhs
-
-
-parseSteps :: Text -> Either String [Step]
-parseSteps = Parse.parseOnly steps
-  where
-    steps :: Parse.Parser [Step]
-    steps = step `Parse.sepBy` Parse.endOfLine
-
-    step :: Parse.Parser Step
+    step :: Parse.Parser (Char, Char)
     step = do
         a <- Parse.string "Step " *> capitalLetter
         b <- Parse.string " must be finished before step " *> capitalLetter
         _ <- Parse.string " can begin."
-        pure (a :-> b)
+        pure (a, b)
 
     capitalLetter :: Parse.Parser Char
     capitalLetter = Parse.satisfy (liftA2 (&&) Char.isAlpha Char.isUpper)
 
 
-lookupWithDefault :: Ord k => v -> k -> Map k v -> v
-lookupWithDefault def k m = fromMaybe def (Map.lookup k m)
-
-
-singleton :: a -> [a]
-singleton = (: [])
-
-
-_example :: [Step]
-_example =
+_example :: Digraph Char
+_example = Digraph
+    ['A', 'B', 'C', 'D', 'E', 'F']
     [ 'C' :-> 'A'
     , 'C' :-> 'F'
     , 'A' :-> 'B'
