@@ -21,6 +21,8 @@ data-files:
     data/day8.txt
     data/day9.txt
     data/day10.txt
+  --data/day11.txt
+    data/day12.txt
 
 
 executable aoc2018
@@ -31,6 +33,8 @@ executable aoc2018
     other-modules:
         Paths_aoc2018
         Control.Monad.Scanner
+        Data.Digraph
+        Data.Universe
 
         Day1
         Day2
@@ -42,13 +46,15 @@ executable aoc2018
         Day8
         Day9
         Day10
+      --Day11
+        Day12
     build-depends:
         base >=4.11 && <4.12
       , attoparsec
+      , comonad
       , containers
-      , text
-      , vector
       , pointedlist
+      , text
     ghc-options:
         -Weverything
         -fno-warn-missing-import-lists
