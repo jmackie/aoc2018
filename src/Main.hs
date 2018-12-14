@@ -16,12 +16,12 @@ import qualified Day8
 import qualified Day9
 
 import qualified Day10
---import qualified Day11
+import qualified Day11
 import qualified Day12
 
 
 main :: IO ()
-main = for_ answers $ \(dayName, printAnswer) -> do
+main = for_ (take 1 $ drop 10 answers) $ \(dayName, printAnswer) -> do
     putStrLn dayName
     printAnswer
 
@@ -38,5 +38,6 @@ answers =
     , ("Day8" , Day8.printAnswer)
     , ("Day9" , Day9.printAnswer)
     , ("Day10", Day10.printAnswer)
+    , ("Day11", Day11.printAnswer)
     , ("Day12", Day12.printAnswer)
     ]
